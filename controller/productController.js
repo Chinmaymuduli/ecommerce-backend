@@ -5,8 +5,17 @@ const cloudinary = require("cloudinary").v2;
 const fs = require("fs");
 
 exports.createProducts = async (req, res) => {
-  let { title, description, price, rating, stock, brand, category, imageUrl } =
-    req.body;
+  let {
+    title,
+    description,
+    price,
+    rating,
+    stock,
+    brand,
+    category,
+    size,
+    imageUrl,
+  } = req.body;
 
   try {
     const resImg = await cloudinary.uploader
@@ -22,6 +31,7 @@ exports.createProducts = async (req, res) => {
       stock,
       brand,
       category,
+      size,
       imageUrl: resImg?.url,
     });
 
@@ -49,11 +59,14 @@ exports.getProducts = async (req, res) => {
   try {
     let dynamicQuery = {};
     if (req.query?.productId) dynamicQuery._id = req.query?.productId;
-    // if (req.query?.categoryId) dynamicQuery._id = req.query?.productId;
+    if (req.query?.categoryId) dynamicQuery.category = req.query?.categoryId;
     if (req.query?.search)
       dynamicQuery.title = new RegExp(req.query?.search, "i");
 
-    const allProducts = await ProductModel.find(dynamicQuery);
+    let allProducts;
+    allProducts = await ProductModel.find(dynamicQuery)
+      .populate("category")
+      .exec();
     if (!allProducts) {
       return res.status(400).json({
         data: undefined,
@@ -72,7 +85,7 @@ exports.getProducts = async (req, res) => {
 };
 exports.updateProducts = async (req, res) => {
   try {
-    let { title, description, price, stock, brand, category, imageUrl } =
+    let { title, description, price, stock, brand, category, size, imageUrl } =
       req.body;
     let { id } = req.params;
     if (!id) {
@@ -97,6 +110,7 @@ exports.updateProducts = async (req, res) => {
       stock,
       brand,
       category,
+      size,
       imageUrl: resImg?.url,
     });
     if (!updateProducts) {
@@ -129,6 +143,37 @@ exports.deleteProducts = async (req, res) => {
       data: id,
       status: 200,
       message: "product deleted successfully",
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+// get similar products
+
+exports.getSimilarProducts = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // const allProducts = await ProductModel.find();
+    const allProducts = await ProductModel.aggregate([
+      {
+        $match: {
+          _id: { $toObjectId: id },
+        },
+      },
+    ]);
+    console.log({ allProducts });
+    if (!allProducts) {
+      return res.status(400).json({
+        data: undefined,
+        status: 400,
+        message: "Products fetch failed",
+      });
+    }
+    return res.status(200).json({
+      data: allProducts,
+      message: "Product get successfully",
+      status: 200,
     });
   } catch (error) {
     console.log(error);

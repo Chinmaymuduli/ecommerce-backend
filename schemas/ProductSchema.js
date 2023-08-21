@@ -7,8 +7,13 @@ const ProductSchema = new mongoose.Schema({
   rating: Number,
   stock: Number,
   brand: String,
-  category: String,
+  category: {
+    type: String,
+    ref: "category",
+  },
   imageUrl: String,
+  size: String,
+  _id: String,
 });
 
 const ProductModel = mongoose.model("Products", ProductSchema);
