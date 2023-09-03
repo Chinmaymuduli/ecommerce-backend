@@ -1,5 +1,5 @@
+const { Types } = require("mongoose");
 const { imageUpload } = require("../hooks/imageUpload");
-const CategoryModel = require("../schemas/CategorySchema");
 const ProductModel = require("../schemas/ProductSchema");
 const cloudinary = require("cloudinary").v2;
 const fs = require("fs");
@@ -57,16 +57,77 @@ exports.createProducts = async (req, res) => {
 };
 exports.getProducts = async (req, res) => {
   try {
-    let dynamicQuery = {};
-    if (req.query?.productId) dynamicQuery._id = req.query?.productId;
-    if (req.query?.categoryId) dynamicQuery.category = req.query?.categoryId;
-    if (req.query?.search)
-      dynamicQuery.title = new RegExp(req.query?.search, "i");
+    let dynamicQuery = [];
+
+    if (req.query?.productId) {
+      dynamicQuery.push({
+        $match: {
+          _id: new Types.ObjectId(req.query?.productId),
+        },
+      });
+    }
+    if (req.query?.categoryId) {
+      dynamicQuery.push({
+        $match: {
+          category: new Types.ObjectId(req.query?.categoryId),
+        },
+      });
+    }
+    if (req.query?.search) {
+      dynamicQuery.push({
+        $match: {
+          title: new RegExp(req.query?.search, "i"),
+        },
+      });
+    }
 
     let allProducts;
-    allProducts = await ProductModel.find(dynamicQuery)
-      .populate("category")
-      .exec();
+    allProducts = await ProductModel.aggregate([
+      ...dynamicQuery,
+      {
+        $lookup: {
+          from: "carts",
+          as: "cartData",
+          localField: "_id",
+          foreignField: "productId",
+          pipeline: [
+            {
+              $match: {
+                userId: new Types.ObjectId(req?.user?._id),
+              },
+            },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          isInCart: {
+            $cond: [
+              {
+                $gt: [
+                  {
+                    $size: {
+                      $ifNull: ["$cartData", []],
+                    },
+                  },
+                  0,
+                ],
+              },
+              true,
+              false,
+            ],
+          },
+        },
+      },
+      {
+        $project: {
+          cartData: 0,
+        },
+      },
+    ]).exec();
+    // allProducts = await ProductModel.find(dynamicQuery)
+    //   .populate("category")
+    //   .exec();
     if (!allProducts) {
       return res.status(400).json({
         data: undefined,
@@ -154,15 +215,41 @@ exports.deleteProducts = async (req, res) => {
 exports.getSimilarProducts = async (req, res) => {
   try {
     const { id } = req.params;
-    // const allProducts = await ProductModel.find();
     const allProducts = await ProductModel.aggregate([
       {
         $match: {
-          _id: { $toObjectId: id },
+          _id: new Types.ObjectId(id),
+        },
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "category",
+          foreignField: "category",
+          as: "similar_products",
+          pipeline: [
+            {
+              $match: {
+                _id: { $ne: new Types.ObjectId(id) },
+              },
+            },
+            {
+              $lookup: {
+                from: "categories",
+                localField: "category",
+                foreignField: "_id",
+                as: "category",
+              },
+            },
+
+            {
+              $unwind: "$category",
+            },
+          ],
         },
       },
     ]);
-    console.log({ allProducts });
+
     if (!allProducts) {
       return res.status(400).json({
         data: undefined,

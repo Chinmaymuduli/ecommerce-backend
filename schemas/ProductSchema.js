@@ -8,12 +8,11 @@ const ProductSchema = new mongoose.Schema({
   stock: Number,
   brand: String,
   category: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
     ref: "category",
   },
   imageUrl: String,
   size: String,
-  _id: String,
 });
 
 const ProductModel = mongoose.model("Products", ProductSchema);
