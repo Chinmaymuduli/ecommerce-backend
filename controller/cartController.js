@@ -1,6 +1,5 @@
 const { Types } = require("mongoose");
 const CartModel = require("../schemas/CartSchema");
-const ProductModel = require("../schemas/ProductSchema");
 
 exports.getCarts = async (req, res) => {
   try {

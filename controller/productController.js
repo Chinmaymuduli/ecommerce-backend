@@ -120,14 +120,23 @@ exports.getProducts = async (req, res) => {
         },
       },
       {
+        $lookup: {
+          from: "categories",
+          localField: "category",
+          foreignField: "_id",
+          as: "categoryData",
+        },
+      },
+      {
+        $unwind: "$categoryData",
+      },
+      {
         $project: {
+          category: 0,
           cartData: 0,
         },
       },
     ]).exec();
-    // allProducts = await ProductModel.find(dynamicQuery)
-    //   .populate("category")
-    //   .exec();
     if (!allProducts) {
       return res.status(400).json({
         data: undefined,
