@@ -56,6 +56,7 @@ app.use("/products", Auth, require("./routes/products"));
 app.use("/category", Auth, require("./routes/category"));
 app.use("/cart", Auth, require("./routes/cart"));
 app.use("/order", Auth, require("./routes/order"));
+app.use("/address", Auth, require("./routes/address"));
 
 app.listen(8000, () => {
   console.log(`app running at 8000`);
